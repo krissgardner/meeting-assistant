@@ -34,7 +34,7 @@ function Login() {
             </Grid>
             <Grid gridDefinition={[{ colspan: 10, offset: 1 }]}>
               <SpaceBetween size={'xs'}>
-                <h2 className='header'>Amazon Live<br/>Meeting Assistant</h2>
+                <h2 className='header'>Meeting Assistant</h2>
                 <p className='headerDesc'>with Amazon Q for Business</p>
               </SpaceBetween>
             </Grid>

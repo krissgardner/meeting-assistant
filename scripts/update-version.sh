@@ -151,7 +151,7 @@ if [[ -f "$EXTENSION_MANIFEST_FILE" ]] ; then
     sed --in-place --regexp-extended --expression "$(
         # shellcheck disable=SC2016
         echo '
-        /^ *"name" *: *"Amazon Live Meeting Assistant" *, *$/ , /^ *"version" *:/ {
+        /^ *"name" *: *"Live Meeting Assistant" *, *$/ , /^ *"version" *:/ {
             s/^(.*"version" *: *")${VERSION_REGEX}(.*)/\1${NEW_VERSION}\5/;
         }
         ' | \

@@ -135,7 +135,43 @@ const CallAttributes = ({ item, setToolsOpen }) => (
 );
 
 // eslint-disable-next-line arrow-body-style
-const CallSummary = ({ item }) => {
+const CallSummary = ({ item, setToolsOpen, callTranscriptPerCallId, collapseSentiment }) => {
+  const { currentCredentials } = useAppContext();
+  const { settings } = useSettingsContext();
+
+  const enableSentimentAnalysis = settings?.IsSentimentAnalysisEnabled === 'true';
+
+  // prettier-ignore
+  const customRetryStrategy = new StandardRetryStrategy(
+    async () => MAXIMUM_ATTEMPTS,
+    {
+      delayDecider:
+            (_, attempts) => Math.floor(
+              Math.min(MAXIMUM_RETRY_DELAY, 2 ** attempts * 10),
+            ),
+    },
+  );
+
+  let translateClient = new TranslateClient({
+    region: awsExports.aws_project_region,
+    credentials: currentCredentials,
+    maxAttempts: MAXIMUM_ATTEMPTS,
+    retryStrategy: customRetryStrategy,
+  });
+
+  /* Get a client with refreshed credentials. Credentials can go stale when user is logged in
+     for an extended period.
+   */
+  useEffect(() => {
+    logger.debug('Translate client with refreshed credentials');
+    translateClient = new TranslateClient({
+      region: awsExports.aws_project_region,
+      credentials: currentCredentials,
+      maxAttempts: MAXIMUM_ATTEMPTS,
+      retryStrategy: customRetryStrategy,
+    });
+  }, [currentCredentials]);
+
   const downloadCallSummary = async (option) => {
     if (option.detail.id === 'download') {
       await exportToTextFile(getTextFileFormattedMeetingDetails(item), `Summary-${item.callId}`);
@@ -143,6 +179,7 @@ const CallSummary = ({ item }) => {
       window.open(`mailto:?subject=${item.callId}&body=${getEmailFormattedSummary(item.callSummaryText)}`);
     }
   };
+
   return (
     <Container
       header={
@@ -194,6 +231,22 @@ const CallSummary = ({ item }) => {
                       </ReactMarkdown>
                     </TextContent>
                   </div>
+                </div>
+              ),
+            },
+            {
+              label: 'Meeting Transcript',
+              id: 'transcripttext',
+              content: (
+                <div>
+                  <CallTranscriptContainer
+                    item={item}
+                    setToolsOpen={setToolsOpen}
+                    callTranscriptPerCallId={callTranscriptPerCallId}
+                    translateClient={translateClient}
+                    collapseSentiment={collapseSentiment}
+                    enableSentimentAnalysis={enableSentimentAnalysis}
+                  />
                 </div>
               ),
             },
@@ -413,7 +466,7 @@ const CallInProgressTranscript = ({
   collapseSentiment,
   enableSentimentAnalysis,
 }) => {
-  const bottomRef = useRef();
+  const bottomRef = useRef(null);
   const [turnByTurnSegments, setTurnByTurnSegments] = useState([]);
   const [translateCache, setTranslateCache] = useState({});
   const [cacheSeen, setCacheSeen] = useState({});
@@ -624,9 +677,14 @@ const CallInProgressTranscript = ({
     if (
       item.recordingStatusLabel === IN_PROGRESS_STATUS
       && autoScroll
-      && bottomRef.current?.scrollIntoView
+      && bottomRef.current
     ) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const container = bottomRef.current.parentNode;
+
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth',
+      });
     }
   }, [turnByTurnSegments, autoScroll, item.recordingStatusLabel, targetLanguage, agentTranscript, translateOn]);
 
@@ -642,6 +700,7 @@ const CallInProgressTranscript = ({
     >
       <ColumnLayout borders="horizontal" columns={1}>
         {turnByTurnSegments}
+        <div ref={bottomRef} />
       </ColumnLayout>
     </div>
   );
@@ -767,13 +826,7 @@ const CallTranscriptContainer = ({
         {
           colspan: {
             default: 12,
-            xs: process.env.REACT_APP_ENABLE_LEX_AGENT_ASSIST === 'true' ? 8 : 12,
-          },
-        },
-        {
-          colspan: {
-            default: 12,
-            xs: process.env.REACT_APP_ENABLE_LEX_AGENT_ASSIST === 'true' ? 4 : 0,
+            xs: 12,
           },
         },
       ]}
@@ -820,9 +873,7 @@ const CallTranscriptContainer = ({
                 </SpaceBetween>
               </SpaceBetween>
             }
-          >
-            Meeting Transcript
-          </Header>
+          />
         }
       >
         {getTranscriptContent({
@@ -837,7 +888,6 @@ const CallTranscriptContainer = ({
           enableSentimentAnalysis,
         })}
       </Container>
-      {getAgentAssistPanel(item, collapseSentiment)}
     </Grid>
   );
 };
@@ -972,50 +1022,37 @@ const CallStatsContainer = ({ item, callTranscriptPerCallId, collapseSentiment, 
   </>
 );
 
-export const CallPanel = ({ item, callTranscriptPerCallId, setToolsOpen }) => {
-  const { currentCredentials } = useAppContext();
+const MeetingAssistContainer = ({ item, collapseSentiment }) => (
+  <Grid
+    gridDefinition={[
+      {
+        colspan: {
+          default: 12,
+          xs: 12,
+        },
+      },
+    ]}
+  >
+    {getAgentAssistPanel(item, collapseSentiment)}
+  </Grid>
+);
 
+export const CallPanel = ({ item, callTranscriptPerCallId, setToolsOpen }) => {
   const { settings } = useSettingsContext();
   const [collapseSentiment, setCollapseSentiment] = useState(false);
 
   const enableVoiceTone = settings?.EnableVoiceToneAnalysis === 'true';
   const enableSentimentAnalysis = settings?.IsSentimentAnalysisEnabled === 'true';
 
-  // prettier-ignore
-  const customRetryStrategy = new StandardRetryStrategy(
-    async () => MAXIMUM_ATTEMPTS,
-    {
-      delayDecider:
-        (_, attempts) => Math.floor(
-          Math.min(MAXIMUM_RETRY_DELAY, 2 ** attempts * 10),
-        ),
-    },
-  );
-
-  let translateClient = new TranslateClient({
-    region: awsExports.aws_project_region,
-    credentials: currentCredentials,
-    maxAttempts: MAXIMUM_ATTEMPTS,
-    retryStrategy: customRetryStrategy,
-  });
-
-  /* Get a client with refreshed credentials. Credentials can go stale when user is logged in
-     for an extended period.
-   */
-  useEffect(() => {
-    logger.debug('Translate client with refreshed credentials');
-    translateClient = new TranslateClient({
-      region: awsExports.aws_project_region,
-      credentials: currentCredentials,
-      maxAttempts: MAXIMUM_ATTEMPTS,
-      retryStrategy: customRetryStrategy,
-    });
-  }, [currentCredentials]);
-
   return (
     <SpaceBetween size="s">
       <CallAttributes item={item} setToolsOpen={setToolsOpen} />
-      <CallSummary item={item} />
+      <CallSummary
+        item={item}
+        setToolsOpen={setToolsOpen}
+        callTranscriptPerCallId={callTranscriptPerCallId}
+        collapseSentiment={collapseSentiment}
+      />
       {(enableSentimentAnalysis || enableVoiceTone) && (
         <Grid
           gridDefinition={[
@@ -1041,14 +1078,7 @@ export const CallPanel = ({ item, callTranscriptPerCallId, setToolsOpen }) => {
           )}
         </Grid>
       )}
-      <CallTranscriptContainer
-        item={item}
-        setToolsOpen={setToolsOpen}
-        callTranscriptPerCallId={callTranscriptPerCallId}
-        translateClient={translateClient}
-        collapseSentiment={collapseSentiment}
-        enableSentimentAnalysis={enableSentimentAnalysis}
-      />
+      <MeetingAssistContainer item={item} collapseSentiment={collapseSentiment} />
     </SpaceBetween>
   );
 };

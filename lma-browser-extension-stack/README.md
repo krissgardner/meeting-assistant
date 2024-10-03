@@ -23,7 +23,7 @@ After downloading `lma-chrome-extension.zip`, right click and expand the zip fil
 
 From within Chrome, navigate to chrome://extensions.  On the left side, click the **Load unpacked**, navigate to the `lma-chrome-extension` folder (which you unzipped from the download), and click select.  This will load your extension.
 
-Pin your new LMA extension to the browser tool bar - select the `extensions` icon and pin the extension `Amazon Live Meeting Assistant`.
+Pin your new LMA extension to the browser tool bar - select the `extensions` icon and pin the extension `Live Meeting Assistant`.
 
    <p align="center"><img src="../images/readme-pin-chrome-extension.png" alt="Pin the Chrome Extension" width="250"/></p>
 

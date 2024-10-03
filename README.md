@@ -348,7 +348,7 @@ features, recommendations on choosing an email for the admin persona, and limita
 
 Make sure you have the latest version of the browser extension installed in your browser after you update the LMA stack.
 
-1. Remove your existing Amazon Live Meeting Assistant extension in the `chrome://extensions/` page.
+1. Remove your existing Live Meeting Assistant extension in the `chrome://extensions/` page.
 
 2. Follow the steps documented in [Download and install the Chrome browser extension](#download-and-install-the-chrome-browser-extension) to install the latest extension from your updated LMA deployment.
 
